@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="de"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kopfrechnen-Trainer</title>
+<style>
+:root{--bg:#f6f8fb;--fg:#1c2330;--card:#fff;--mut:#667085;--ac:#2563eb;--acf:#fff;--ok:#15803d;--bad:#b91c1c;--ln:#e1e6ee;color-scheme:light;box-sizing:border-box;padding-top:env(safe-area-inset-top,0px);padding-bottom:env(safe-area-inset-bottom,0px)}
+@media(prefers-color-scheme:dark){:root:not([data-theme="light"]){--bg:#0f141c;--fg:#e8ecf3;--card:#192130;--mut:#98a2b3;--ac:#6ea0ff;--acf:#0b1220;--ok:#4ade80;--bad:#f87171;--ln:#2a3345;color-scheme:dark}}
+:root[data-theme="dark"]{--bg:#0f141c;--fg:#e8ecf3;--card:#192130;--mut:#98a2b3;--ac:#6ea0ff;--acf:#0b1220;--ok:#4ade80;--bad:#f87171;--ln:#2a3345;color-scheme:dark}
+html{scroll-padding-top:env(safe-area-inset-top,0px)}
+body{margin:0;background:var(--bg);color:var(--fg);font:16px/1.5 system-ui,Arial,sans-serif}
+header{display:flex;justify-content:space-between;align-items:center;padding:12px 16px;max-width:760px;margin:0 auto}
+header b{font-size:18px}main{max-width:760px;margin:0 auto;padding:0 16px 32px}
+.card{background:var(--card);border:1px solid var(--ln);border-radius:14px;padding:18px;margin-bottom:16px}
+h2{margin:0 0 12px;font-size:20px}h3{margin:16px 0 8px;font-size:16px}
+input[type=text],input[type=password],input[type=number],input:not([type]){width:100%;box-sizing:border-box;padding:10px;border:1px solid var(--ln);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit;margin:4px 0 10px}
+button{font:inherit;padding:10px 16px;border-radius:8px;border:1px solid var(--ac);background:var(--ac);color:var(--acf);cursor:pointer;margin:4px 6px 4px 0}
+button.s{background:none;color:var(--ac)}button.d{background:none;color:var(--bad);border-color:var(--bad)}
+.tabs button{background:none;color:var(--fg);border-color:var(--ln)}.tabs button.on{background:var(--ac);color:var(--acf);border-color:var(--ac)}
+.q{font-size:42px;font-weight:700;text-align:center;margin:18px 0}
+#in{font-size:28px;text-align:center}
+.top{display:flex;justify-content:space-between;color:var(--mut)}.top b{color:var(--fg);font-variant-numeric:tabular-nums}
+.big{font-size:22px;font-weight:600}.g{color:var(--ok)}.b{color:var(--bad)}.m{color:var(--mut);font-size:14px}
+label.c{display:flex;gap:8px;align-items:center;padding:6px 0}label.c input{width:auto;margin:0}
+.w{overflow-x:auto}table{border-collapse:collapse;width:100%;font-size:14px}td,th{padding:6px;border-bottom:1px solid var(--ln);text-align:left;vertical-align:middle}td input{margin:0;min-width:70px}
+ul{padding-left:20px;margin:0}li{margin:4px 0}
+textarea{width:100%;box-sizing:border-box;min-height:70px;padding:8px;border:1px solid var(--ln);border-radius:8px;background:var(--bg);color:var(--fg);font:inherit}
+</style></head><body>
+<header><b>Kopfrechnen-Trainer</b><span id="who"></span></header>
+<main><div id="app"></div></main>
+<script>
+/* NEUE AUFGABENART: unten im Array MODS einen Eintrag ergaenzen, z. B.
+   {id:11,n:'Name',g:c=>({q:'Frage',a:Zahl})}. c.lim = Limit, c.ser = Reihenliste.
+   Die Nummer (id) bleibt fix, der Name ist im Master-Bereich umbenennbar. */
+const $=s=>document.querySelector(s),R=(a,b)=>Math.floor(Math.random()*(b-a+1))+a,pk=a=>a[R(0,a.length-1)];
+const f=x=>typeof x=='string'?x:String(Math.round(x*100)/100).replace('.',','),tm=ms=>{const s=Math.floor(ms/1000);return String(Math.floor(s/60)).padStart(2,'0')+':'+String(s%60).padStart(2,'0')};
+const esc=s=>String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const ser=c=>{const l=(c.ser||'').split(/[\s,;]+/).map(Number).filter(n=>n>0);return l.length?l:Array.from({length:c.lim},(_,i)=>i+1)};
+const MODS=[
+{id:1,n:'Multiplikation',g:c=>{const a=pk(ser(c)),b=R(1,12);return{q:`${a} × ${b}`,a:a*b}}},
+{id:2,n:'Division',g:c=>{const a=pk(ser(c)),b=R(1,12);return{q:`${a*b} ÷ ${a}`,a:b}}},
+{id:3,n:'Addition',g:c=>{const m=c.lim*8,a=R(1,m),b=R(1,m);return{q:`${a} + ${b}`,a:a+b}}},
+{id:4,n:'Subtraktion',g:c=>{const m=c.lim*8,a=R(2,m),b=R(1,a);return{q:`${a} − ${b}`,a:a-b}}},
+{id:5,n:'Quadratzahlen',g:c=>{const a=R(1,c.lim);return{q:`${a}²`,a:a*a}}},
+{id:6,n:'Dezimal addieren',g:c=>{const m=c.lim*5,a=R(1,m)/10,b=R(1,m)/10;return{q:`${f(a)} + ${f(b)}`,a:Math.round((a+b)*10)/10}}},
+{id:7,n:'Brüche',g:c=>{const d=pk([2,3,4,5,10]),z=R(1,d-1),b=d*R(1,c.lim);return{q:`${z}/${d} von ${b}`,a:z*b/d}}},
+{id:8,n:'Prozent',g:c=>{const p=pk([10,20,25,50]),b=R(1,c.lim)*20;return{q:`${p} % von ${b}`,a:p*b/100}}},
+{id:9,n:'Halbieren/Verdoppeln',g:c=>{const a=R(1,c.lim*8);return Math.random()<.5?{q:`Hälfte von ${a*2}`,a}:{q:`Doppeltes von ${a}`,a:a*2}}},
+{id:10,n:'Gemischt (1–4)',g:c=>MODS[R(0,3)].g(c)}
+];
+const K='kopfrechnen_v1',mk=()=>MODS.map(m=>({id:m.id,name:m.n,on:m.id<=4,lim:12,ser:''}));
+let S;try{S=JSON.parse(localStorage.getItem(K))}catch(e){}
+S=S||{mp:null,users:{},rep:{},draft:mk(),final:mk()};
+['draft','final'].forEach(k=>MODS.forEach(m=>{if(!S[k].find(x=>x.id==m.id))S[k].push(mk().find(x=>x.id==m.id))}));
+const save=()=>{try{localStorage.setItem(K,JSON.stringify(S))}catch(e){}};
+const hash=async s=>[...new Uint8Array(await crypto.subtle.digest('SHA-256',new TextEncoder().encode('kr|'+s)))].map(b=>b.toString(16).padStart(2,'0')).join('');
+let V='login',lt='s',me=null,run=null,tab='mod',rel=false,del=null;
+const msg=t=>{const e=$('#msg');if(e)e.textContent=t};
+
+function render(){
+ $('#who').innerHTML=me?`${me.role=='m'?'Master':esc(me.name)} <button class="s" onclick="out()">Abmelden</button>`:'';
+ $('#app').innerHTML=({login:loginV,home:homeV,run:runV,res:resV,master:masterV})[V]();
+ if(V=='run')$('#in').focus();
+}
+function out(){clearInterval(run&&run.iv);me=null;V='login';render()}
+function loginV(){
+ const t=(k,l)=>`<button class="${lt==k?'':'s'}" onclick="lt='${k}';render()">${l}</button>`;
+ return `<div class="card"><h2>Anmelden</h2>${t('s','Schüler')}${t('r','Neu registrieren')}${t('m','Master')}<br><br>
+ ${lt=='m'?`<label>${S.mp?'Master-Passwort':'Master-Passwort festlegen (erste Einrichtung)'}</label>`:'<label>Benutzername</label><input id="u" autocomplete="username">'}
+ <label>Passwort</label><input id="p" type="password" onkeydown="if(event.key==='Enter')doLogin()">
+ <button onclick="doLogin()">${lt=='r'?'Konto erstellen':'Anmelden'}</button><p id="msg" class="b"></p>
+ <p class="m">Alle Daten liegen in diesem Browser auf diesem Gerät.</p></div>`}
+async function doLogin(){
+ const u=($('#u')?.value||'').trim(),p=$('#p').value;
+ if(!p)return msg('Bitte Passwort eingeben.');
+ if(lt=='m'){const h=await hash('m|'+p);if(!S.mp){S.mp=h;save()}else if(S.mp!==h)return msg('Falsches Master-Passwort.');me={role:'m'};V='master';return render()}
+ if(!u)return msg('Bitte Benutzername eingeben.');
+ const h=await hash(u+'|'+p);
+ if(lt=='r'){if(S.users[u])return msg('Dieser Name ist schon vergeben.');S.users[u]={h,res:[]};save()}
+ else if(!S.users[u]||S.users[u].h!==h)return msg('Name oder Passwort falsch.');
+ me={role:'s',name:u};V='home';render()}
+
+function chart(t,v,mx,fm,o){
+ const n=v.length;if(n<2)return `<p class="m">${t}: Der Verlauf erscheint ab dem 2. Block.</p>`;
+ const W=600,H=170,L=48,B=24,T=10,x=i=>L+i*(W-L-12)/(n-1),y=a=>T+(H-T-B)*(1-a/mx);
+ return `<h3>${t}</h3><svg viewBox="0 0 ${W} ${H}" width="100%" role="img" aria-label="${t}"><g stroke="var(--ln)"><line x1="${L}" y1="${y(0)}" x2="${W-12}" y2="${y(0)}"/><line x1="${L}" y1="${y(mx)}" x2="${W-12}" y2="${y(mx)}"/></g><g fill="var(--mut)" font-size="12"><text x="${L-6}" y="${y(mx)+4}" text-anchor="end">${fm(mx)}</text><text x="${L-6}" y="${y(0)+4}" text-anchor="end">${fm(0)}</text><text x="${L}" y="${H-6}">Block ${o+1}</text><text x="${W-12}" y="${H-6}" text-anchor="end">Block ${o+n}</text></g><polyline fill="none" stroke="var(--ac)" stroke-width="2.5" points="${v.map((a,i)=>x(i)+','+y(a)).join(' ')}"/>${v.map((a,i)=>`<circle cx="${x(i)}" cy="${y(a)}" r="4" fill="var(--ac)"><title>Block ${o+i+1}: ${fm(a)}</title></circle>`).join('')}</svg>`}
+function hist(res){
+ if(!res.length)return '';
+ const o=Math.max(0,res.length-30),r=res.slice(o);
+ return `<div class="card"><h2>Meine Auswertung</h2>${chart('Richtige Antworten pro Block',r.map(x=>x.ok/x.n*100),100,a=>Math.round(a)+' %',o)}${chart('Zeit pro Block',r.map(x=>x.ms),Math.max(...r.map(x=>x.ms),1000),tm,o)}
+ <h3>Alle Blöcke</h3><div class="w"><table><tr><th>Nr.</th><th>Datum</th><th>Richtig</th><th>Zeit</th></tr>${res.map((x,i)=>`<tr><td>${i+1}</td><td>${new Date(x.d).toLocaleDateString('de-CH')}</td><td>${x.ok}/${x.n}</td><td>${tm(x.ms)}</td></tr>`).reverse().join('')}</table></div></div>`}
+function homeV(){
+ const mods=S.final.filter(c=>c.on&&okU(me.name,c.id)),res=S.users[me.name].res;
+ return `<div class="card"><h2>Hallo ${esc(me.name)}</h2><h3>Was möchtest du üben?</h3>
+ ${mods.map(c=>`<label class="c"><input type="checkbox" class="sel" value="${c.id}" ${c.id<=2?'checked':''}> ${esc(c.name)}</label>`).join('')||'<p>Noch keine Aufgabenarten freigegeben.</p>'}
+ <h3>Reihen selbst bestimmen</h3>
+ <label class="m">Reihen bis (leer = Standard, z. B. 12 oder 20)</label><input id="lim" type="number" min="1">
+ <label class="m">Nur bestimmte Reihen (z. B. 3, 7, 12)</label><input id="ser" placeholder="alle">
+ <button onclick="startS()">20 Aufgaben starten</button><p id="msg" class="b"></p></div>
+ ${hist(res)}`}
+function startS(){
+ const ids=[...document.querySelectorAll('.sel:checked')].map(e=>+e.value);if(!ids.length)return msg('Bitte mindestens eine Aufgabenart wählen.');
+ const lim=Math.max(0,+$('#lim').value)||0,sr=$('#ser').value;
+ start(ids.map(id=>{const c=S.final.find(x=>x.id==id);return{...c,lim:lim||c.lim,ser:sr||c.ser}}),false)}
+function start(cfg,test){
+ const tasks=[];for(let i=0;i<20;i++){const c=pk(cfg);tasks.push({...gen(c),id:c.id})}
+ run={tasks,i:0,t0:null,test};V='run';render()}
+function runV(){
+ const t=run.tasks[run.i],last=run.i==run.tasks.length-1;
+ return `<div class="card"><div class="top"><span>Aufgabe ${run.i+1} von ${run.tasks.length}</span><b id="tm">${tm(run.t0?Date.now()-run.t0:0)}</b></div>
+ <div class="q">${esc(t.q)} =</div><input id="in" inputmode="decimal" autocomplete="off" oninput="tick()" onkeydown="if(event.key==='Enter')ok()">
+ <button onclick="ok()">${last?'Fertig':'Weiter'}</button></div>`}
+function tick(){if(!run.t0){run.t0=Date.now();run.iv=setInterval(()=>{const e=$('#tm');if(e)e.textContent=tm(Date.now()-run.t0)},250)}}
+function ok(){
+ const v=$('#in').value.trim();if(!v)return;tick();
+ const t=run.tasks[run.i];t.u=v;t.ok=chk(v,t.a);run.i++;
+ run.i>=run.tasks.length?finish():render()}
+function finish(){
+ clearInterval(run.iv);run.ms=Date.now()-run.t0;run.right=run.tasks.filter(t=>t.ok).length;
+ if(!run.test){
+  S.users[me.name].res.push({d:Date.now(),n:run.tasks.length,ok:run.right,ms:run.ms,m:[...new Set(run.tasks.map(t=>t.id))]});
+  run.tasks.forEach(t=>{const r=S.rep[t.id]=S.rep[t.id]||{n:0,ok:0};r.n++;r.ok+=t.ok?1:0}); /* Rapport an den Master */
+  save()}
+ V='res';render()}
+function resV(){
+ const bad=run.tasks.filter(t=>!t.ok);
+ return `<div class="card"><h2>${run.test?'Testlauf':'Ergebnis'}</h2><p class="big">${run.right} von ${run.tasks.length} richtig · ${tm(run.ms)}</p>
+ ${bad.length?`<h3>Das schauen wir nochmals an</h3><ul>${bad.map(t=>`<li>${esc(t.q)} = <b class="g">${f(t.a)}</b> <span class="b">(deine Antwort: ${esc(t.u)})</span></li>`).join('')}</ul><br><button onclick="retry()">Fehler wiederholen</button>`:'<p class="g big">Alles richtig!</p>'}
+ <button class="s" onclick="V=me.role=='m'?'master':'home';render()">Zurück</button></div>${run.test?'':hist(S.users[me.name].res)}`}
+function retry(){run={tasks:run.tasks.filter(t=>!t.ok).map(t=>({q:t.q,a:t.a,id:t.id})),i:0,t0:null,test:true};V='run';render()}
+
+function masterV(){
+ const T=(k,l)=>`<button class="${tab==k?'':'s'}" onclick="tab='${k}';render()">${l}</button>`;
+ let b='';
+ if(tab=='mod'){
+  b=`<div class="card"><h2>Entwurf der Aufgabenarten</h2><p class="m">Hier änderst du den Entwurf. Schüler sehen nur die freigegebene Final-Version.</p>
+  <div class="w"><table><tr><th>Nr.</th><th>Name</th><th>An</th><th>Limit</th><th>Reihen</th><th>Rapport (final)</th></tr>
+  ${S.draft.map((c,i)=>{const r=S.rep[c.id];return `<tr><td><b>${c.id}</b></td><td><input value="${esc(c.name)}" onchange="ed(${i},'name',this.value)"></td>
+  <td><input type="checkbox" ${c.on?'checked':''} onchange="ed(${i},'on',this.checked)"></td>
+  <td><input type="number" min="1" value="${c.lim}" onchange="ed(${i},'lim',Math.max(1,+this.value||12))"></td>
+  <td><input value="${esc(c.ser)}" placeholder="alle" onchange="ed(${i},'ser',this.value)"></td>
+  <td class="m">${r?`${r.n} Aufg., ${Math.round(r.ok/r.n*100)} % richtig`:'noch nichts gemeldet'}</td></tr>${c.custom?`<tr><td></td><td colspan="5"><textarea placeholder="Eine Aufgabe pro Zeile: Aufgabe = Ergebnis, z. B. 3/4 + 1/4 = 1" onchange="ed(${i},'tasks',this.value)">${esc(c.tasks||'')}</textarea></td></tr>`:''}`}).join('')}</table></div><br><button class="s" onclick="addC()">+ Kategorie hinzufügen</button>
+  <button onclick="testD()">Entwurf testen</button>
+  <button onclick="relz()">${rel?'Wirklich freigeben?':'Entwurf freigeben'}</button>
+  <button class="s" onclick="S.draft=JSON.parse(JSON.stringify(S.final));save();render()">Entwurf = Final</button><p id="msg" class="b"></p></div>`}
+ if(tab=='usr'){
+  b=`<div class="card"><h2>Benutzerkonten</h2>${Object.keys(S.users).map(u=>`<div style="border-bottom:1px solid var(--ln);padding:8px 0"><b>${esc(u)}</b> <span class="m">${S.users[u].res.length} Blöcke</span><br>
+  <div class="m">Freigegebene Kategorien:</div><div style="display:flex;flex-wrap:wrap;gap:0 16px">${S.final.filter(c=>c.on).map(c=>`<label class="c"><input type="checkbox" ${okU(u,c.id)?'checked':''} data-u="${esc(u)}" onchange="setAl(this.dataset.u,${c.id},this.checked)"> ${esc(c.name)}</label>`).join('')}</div>
+  <input id="pw_${esc(u)}" type="password" placeholder="Neues Passwort" style="max-width:220px"> <button class="s" data-u="${esc(u)}" onclick="setPw(this.dataset.u)">Setzen</button>
+  <button class="d" data-u="${esc(u)}" onclick="rm(this.dataset.u)">${del==u?'Wirklich löschen?':'Löschen'}</button></div>`).join('')||'<p>Noch keine Konten.</p>'}
+  <h3>Master-Passwort ändern</h3><input id="mpw" type="password" placeholder="Neues Master-Passwort" style="max-width:260px"> <button class="s" onclick="setMp()">Ändern</button><p id="msg" class="b"></p></div>`}
+ if(tab=='ev'){
+  const rows=[];Object.entries(S.users).forEach(([u,x])=>x.res.forEach(r=>rows.push({u,...r})));rows.sort((a,b)=>b.d-a.d);
+  b=`<div class="card"><h2>Auswertung</h2><div class="w"><table><tr><th>Datum</th><th>Schüler</th><th>Richtig</th><th>Zeit</th><th>Arten</th></tr>
+  ${rows.map(r=>`<tr><td>${new Date(r.d).toLocaleString('de-CH')}</td><td>${esc(r.u)}</td><td>${r.ok}/${r.n}</td><td>${tm(r.ms)}</td><td class="m">${r.m.map(i=>esc((S.final.find(c=>c.id==i)||{}).name||i)).join(', ')}</td></tr>`).join('')||'<tr><td colspan="5">Noch keine Ergebnisse.</td></tr>'}</table></div></div>`}
+ return `<div class="tabs">${T('mod','Aufgabenarten')}${T('usr','Benutzer')}${T('ev','Auswertung')}</div><br>${b}`}
+function ed(i,k,v){S.draft[i][k]=v;save()}
+function addC(){const u=S.draft.map(c=>c.id);let id=11;while(u.includes(id)&&id<=50)id++;if(id>50)return msg('Maximal 50 Kategorien.');S.draft.push({id,name:'Neue Kategorie '+id,on:false,lim:12,ser:'',custom:true,tasks:''});save();render()}
+function gen(c){const m=MODS.find(m=>m.id==c.id);if(m)return m.g(c);
+ const l=(c.tasks||'').split('\n').map(s=>s.split('=')).filter(p=>p.length>=2&&p[0].trim()).map(p=>{const a=p.pop().trim();return{q:p.join('=').trim(),a:/^-?[\d.,]+$/.test(a)?parseFloat(a.replace(',','.')):a}});
+ return l.length?pk(l):{q:'(keine Aufgaben hinterlegt)',a:0}}
+function chk(v,a){return typeof a=='number'?Math.abs(parseFloat(v.replace(',','.'))-a)<1e-9:v.trim().toLowerCase()==String(a).toLowerCase()}
+function okU(u,id){const a=S.users[u].allow;return !a||a.includes(id)}
+function setAl(u,id,on){const x=S.users[u];x.allow=(x.allow||S.final.filter(c=>c.on).map(c=>c.id)).filter(i=>i!=id);if(on)x.allow.push(id);save()}
+function testD(){const cfg=S.draft.filter(c=>c.on).map(c=>({...c}));if(!cfg.length)return msg('Im Entwurf ist keine Aufgabenart aktiv.');start(cfg,true)}
+function relz(){if(!rel){rel=true;return render()}S.final=JSON.parse(JSON.stringify(S.draft));rel=false;save();render();msg('Freigegeben: Schüler sehen jetzt die neue Version.')}
+async function setPw(u){const v=$('#pw_'+u).value;if(!v)return msg('Bitte neues Passwort eingeben.');S.users[u].h=await hash(u+'|'+v);save();msg('Passwort für '+u+' gesetzt.')}
+function rm(u){if(del!=u){del=u;return render()}delete S.users[u];del=null;save();render()}
+async function setMp(){const v=$('#mpw').value;if(!v)return msg('Bitte Passwort eingeben.');S.mp=await hash('m|'+v);save();msg('Master-Passwort geändert.')}
+render();
+</script></body></html>
